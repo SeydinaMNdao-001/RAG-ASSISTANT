@@ -1,0 +1,17 @@
+# Secrets — ne jamais commiter la clé API
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Index généré automatiquement (régénéré à chaque lancement / ajout de document)
+index/*
+!index/.gitkeep
+
+# Système
+.DS_Store
