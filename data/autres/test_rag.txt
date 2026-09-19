@@ -1,0 +1,1 @@
+Ce document sert à tester le pipeline RAG. Le délai de préavis est de 30 jours.

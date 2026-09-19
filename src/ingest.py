@@ -50,13 +50,7 @@ def _get_embedding_model() -> SentenceTransformer:
     return SentenceTransformer(EMBEDDING_MODEL)
 
 
-@dataclass
-class Chunk:
-    text: str
-    source: str          # nom du fichier, pour l'affichage
-    category: str         # sous-dossier de data/ (contrats, factures, ...)
-    path: str              # chemin relatif à data/, clé stable du fichier d'origine
-    page: int | None = None  # réel pour un PDF, virtuel pour un DOCX/TXT
+from src.models import Chunk
 
 
 @dataclass

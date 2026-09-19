@@ -31,7 +31,8 @@ from src.config import (
     RETRIEVAL_TOP_K,
     SYSTEM_PROMPT,
 )
-from src.ingest import Chunk, load_store
+from src.ingest import load_store
+from src.models import Chunk
 
 NO_ANSWER_MESSAGE = (
     "Je ne trouve pas cette information dans les documents indexés. "

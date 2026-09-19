@@ -1,0 +1,28 @@
+# --- Interface ---
+streamlit==1.38.0
+
+# --- Génération de réponses ---
+anthropic>=1.7.0
+
+# --- Recherche vectorielle (RAG) ---
+sentence-transformers==3.0.1
+faiss-cpu==1.8.0.post1
+numpy<2
+
+# --- Extraction de documents ---
+pypdf==4.3.1
+python-docx==1.1.2
+PyMuPDF==1.24.9
+
+# --- OCR (documents scannés / images) ---
+pytesseract==0.3.13
+Pillow==10.4.0
+
+# --- Mise à jour automatique ---
+watchdog==4.0.2
+
+# --- Divers ---
+python-dotenv==1.0.1
+
+# --- Tests ---
+pytest==8.3.2
