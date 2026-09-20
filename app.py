@@ -34,51 +34,24 @@ def _ensure_watcher_running():
 
 _ensure_watcher_running()
 
-# --- État partagé entre les deux vues (chat / visionneuse) ---
 st.session_state.setdefault("vue", "💬 Assistant")
-st.session_state.setdefault("viewer_doc", None)   # chemin relatif du document ouvert
+st.session_state.setdefault("viewer_doc", None)
 st.session_state.setdefault("viewer_page", 1)
 st.session_state.setdefault("messages", [])
 
 
 def _open_in_viewer(relative_path: str, page: int | None) -> None:
-    """Bascule vers la visionneuse, ouverte sur le document et la page donnés."""
+    """Bascule vers la visionneuse, ouverte sur le document et la page donnés.
+
+    IMPORTANT : cette fonction ne doit être appelée qu'AVANT que le widget
+    radio (key="vue") de la barre latérale n'ait été instancié dans ce passage
+    du script — d'où le fait que la barre latérale est codée en dernier,
+    plus bas dans ce fichier, même si elle s'affiche visuellement à gauche.
+    """
     st.session_state["viewer_doc"] = relative_path
     st.session_state["viewer_page"] = page or 1
     st.session_state["vue"] = "📁 Parcourir les documents"
     st.rerun()
-
-
-# ============================================================
-# BARRE LATÉRALE
-# ============================================================
-with st.sidebar:
-    st.header("Navigation")
-    st.radio("Vue", ["💬 Assistant", "📁 Parcourir les documents"], key="vue")
-
-    st.divider()
-    st.header("Documents indexés")
-    manifest = load_manifest()
-    if manifest:
-        by_category_count = defaultdict(int)
-        for entry in manifest.values():
-            by_category_count[entry["category"]] += 1
-        for category, count in sorted(by_category_count.items()):
-            st.write(f"**{category}** — {count} document(s)")
-    else:
-        st.info("Aucun document indexé pour l'instant.")
-
-    if st.button("🔄 Forcer une resynchronisation"):
-        with st.spinner("Synchronisation..."):
-            result = sync(verbose=False)
-        st.success(
-            f"{len(result.added)} ajouté(s), {len(result.updated)} modifié(s), "
-            f"{len(result.removed)} supprimé(s)."
-        )
-        st.rerun()
-
-    st.divider()
-    st.caption(f"Dossier surveillé : `{DATA_DIR}`")
 
 
 # ============================================================
@@ -104,33 +77,29 @@ def render_chat_view() -> None:
         "il est pris en compte automatiquement."
     )
 
+    question = st.chat_input("Pose ta question sur les documents indexés…")
+
+    if question:
+        st.session_state.messages.append({"role": "user", "content": question, "sources": None})
+        with st.spinner("Recherche dans les documents et génération de la réponse…"):
+            try:
+                result = answer_question(question)
+                st.session_state.messages.append(
+                    {"role": "assistant", "content": result.answer, "sources": result.sources}
+                )
+            except (IndexNotFoundError, RuntimeError) as e:
+                st.session_state.messages.append(
+                    {"role": "assistant", "content": f"⚠️ {e}", "sources": None}
+                )
+
+    # Un seul chemin d'affichage, pour TOUS les messages (nouveau compris) :
+    # la clé de chaque bouton est basée sur la position stable du message dans
+    # la liste, elle ne change jamais entre son premier affichage et les suivants.
     for i, msg in enumerate(st.session_state.messages):
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             if msg["role"] == "assistant" and msg.get("sources"):
-                _render_sources(msg["sources"], key_prefix=f"hist_{i}")
-
-    question = st.chat_input("Pose ta question sur les documents indexés…")
-
-    if question:
-        st.session_state.messages.append({"role": "user", "content": question})
-        with st.chat_message("user"):
-            st.markdown(question)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Recherche dans les documents et génération de la réponse…"):
-                try:
-                    result = answer_question(question)
-                    st.markdown(result.answer)
-                    if result.sources:
-                        _render_sources(result.sources, key_prefix="new")
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": result.answer, "sources": result.sources}
-                    )
-                except IndexNotFoundError as e:
-                    st.error(str(e))
-                except RuntimeError as e:
-                    st.error(str(e))
+                _render_sources(msg["sources"], key_prefix=f"msg_{i}")
 
 
 # ============================================================
@@ -150,7 +119,6 @@ def render_browse_view() -> None:
 
     categories = sorted(by_category.keys())
 
-    # Pré-sélection si on arrive depuis un clic "Voir cette page"
     preselected_path = st.session_state.get("viewer_doc")
     preselected_category = None
     for cat, paths in by_category.items():
@@ -195,9 +163,41 @@ def render_browse_view() -> None:
 
 
 # ============================================================
-# ROUTAGE ENTRE LES DEUX VUES
+# ROUTAGE ENTRE LES DEUX VUES (contenu principal d'abord)
 # ============================================================
 if st.session_state["vue"] == "💬 Assistant":
     render_chat_view()
 else:
     render_browse_view()
+
+
+# ============================================================
+# BARRE LATÉRALE (codée en dernier : voir la note dans _open_in_viewer)
+# ============================================================
+with st.sidebar:
+    st.header("Navigation")
+    st.radio("Vue", ["💬 Assistant", "📁 Parcourir les documents"], key="vue")
+
+    st.divider()
+    st.header("Documents indexés")
+    manifest = load_manifest()
+    if manifest:
+        by_category_count = defaultdict(int)
+        for entry in manifest.values():
+            by_category_count[entry["category"]] += 1
+        for category, count in sorted(by_category_count.items()):
+            st.write(f"**{category}** — {count} document(s)")
+    else:
+        st.info("Aucun document indexé pour l'instant.")
+
+    if st.button("🔄 Forcer une resynchronisation"):
+        with st.spinner("Synchronisation..."):
+            result = sync(verbose=False)
+        st.success(
+            f"{len(result.added)} ajouté(s), {len(result.updated)} modifié(s), "
+            f"{len(result.removed)} supprimé(s)."
+        )
+        st.rerun()
+
+    st.divider()
+    st.caption(f"Dossier surveillé : `{DATA_DIR}`")
