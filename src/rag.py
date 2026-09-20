@@ -5,7 +5,8 @@ rag.py — Pipeline de réponse aux questions.
 2. Recherche vectorielle FAISS -> top candidats (large filet)
 3. Reranking par cross-encoder -> passages vraiment pertinents (précision fine)
 4. Si aucun passage n'est assez pertinent -> réponse honnête "je ne sais pas"
-5. Sinon -> génération de la réponse par Claude, avec citation des sources
+5. Sinon -> génération de la réponse par un LLM (Groq/Llama, gratuit), avec
+   citation des sources.
 """
 
 from __future__ import annotations
@@ -16,14 +17,14 @@ from functools import lru_cache
 
 import faiss
 import numpy as np
-from anthropic import Anthropic
+from groq import Groq
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
 from src.config import (
-    ANTHROPIC_API_KEY,
-    ANTHROPIC_MODEL,
     CONFIDENCE_THRESHOLD,
     EMBEDDING_MODEL,
+    GROQ_API_KEY,
+    GROQ_MODEL,
     MANIFEST_PATH,
     MAX_TOKENS,
     RERANK_TOP_K,
@@ -72,8 +73,6 @@ def _reranker_model() -> CrossEncoder:
 
 
 def _current_version() -> float | None:
-    """Date de modification du manifeste = signal de fraîcheur : si le
-    watcher a mis à jour l'index, on le détecte ici et on recharge."""
     if MANIFEST_PATH.exists():
         return MANIFEST_PATH.stat().st_mtime
     return None
@@ -104,7 +103,6 @@ def _load_index_cached():
 
 
 def retrieve(question: str, retrieval_k: int = RETRIEVAL_TOP_K, rerank_k: int = RERANK_TOP_K) -> list[RetrievedChunk]:
-    """Recherche vectorielle (large filet) suivie d'un reranking (précision fine)."""
     index, chunks = _load_index_cached()
 
     query_vec = _embedding_model().encode([question], convert_to_numpy=True).astype(np.float32)
@@ -137,11 +135,10 @@ def _build_context(retrieved: list[RetrievedChunk]) -> str:
 
 
 def answer_question(question: str, rerank_k: int = RERANK_TOP_K) -> RagAnswer:
-    """Pipeline complet : retrieval + reranking + seuil de confiance + génération."""
-    if not ANTHROPIC_API_KEY:
+    if not GROQ_API_KEY:
         raise RuntimeError(
-            "ANTHROPIC_API_KEY n'est pas définie. Ajoute-la dans un fichier .env "
-            "(voir .env.example)."
+            "GROQ_API_KEY n'est pas définie. Ajoute-la dans ton fichier .env "
+            "(clé gratuite sur https://console.groq.com/keys)."
         )
 
     retrieved = retrieve(question, rerank_k=rerank_k)
@@ -151,16 +148,16 @@ def answer_question(question: str, rerank_k: int = RERANK_TOP_K) -> RagAnswer:
 
     context = _build_context(retrieved)
 
-    client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    message = client.messages.create(
-        model=ANTHROPIC_MODEL,
+    client = Groq(api_key=GROQ_API_KEY)
+    completion = client.chat.completions.create(
+        model=GROQ_MODEL,
         max_tokens=MAX_TOKENS,
-        system=SYSTEM_PROMPT,
         messages=[
-            {"role": "user", "content": f"Extraits de documents :\n\n{context}\n\nQuestion : {question}"}
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Extraits de documents :\n\n{context}\n\nQuestion : {question}"},
         ],
     )
 
-    answer_text = "".join(block.text for block in message.content if block.type == "text")
+    answer_text = completion.choices[0].message.content
 
     return RagAnswer(answer=answer_text, sources=retrieved, confident=True)

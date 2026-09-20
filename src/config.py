@@ -58,9 +58,17 @@ WATCH_DEBOUNCE_SECONDS = 2.0
 # ============================================================
 # 7. GÉNÉRATION (Claude) + lecture de la clé secrète
 # ============================================================
+
+# NOTE : le projet utilise Groq (gratuit) pour la génération pour l'instant.
+# Le code est écrit pour qu'il soit facile de rebasculer sur Claude plus tard
+# (voir rag.py) — il suffira de changer le client et le modèle utilisés.
 ANTHROPIC_MODEL = "claude-sonnet-5"
-MAX_TOKENS = 1024
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+GROQ_MODEL = "openai/gpt-oss-120b"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+
+MAX_TOKENS = 1024
 
 SYSTEM_PROMPT = """Tu es un assistant documentaire qui répond UNIQUEMENT à partir des extraits fournis.
 

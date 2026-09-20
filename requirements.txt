@@ -2,7 +2,8 @@
 streamlit==1.38.0
 
 # --- Génération de réponses ---
-anthropic>=1.7.0
+groq
+   anthropic>=1.7.0
 
 # --- Recherche vectorielle (RAG) ---
 sentence-transformers==3.0.1
