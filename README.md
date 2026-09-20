@@ -15,7 +15,7 @@ documents. Le multi-entreprises est une évolution possible, pas encore construi
 - [x] Extraction PDF / DOCX / images + bascule OCR automatique (`extract.py`)
 - [x] Indexation incrémentale avec manifeste (`ingest.py`)
 - [x] Surveillance automatique du dossier `data/` (`watcher.py`)
-- [ ] Recherche + reranking + génération de réponse (`rag.py`) — en cours
+- [x] Recherche + reranking + génération de réponse (`rag.py`) — génération via Groq (gratuit) pour l'instant, facilement remplaçable par Claude
 - [ ] Visionneuse de documents page par page (`viewer.py`)
 - [ ] Interface Streamlit complète (`app.py`)
 - [ ] Déploiement (Hugging Face Spaces)
